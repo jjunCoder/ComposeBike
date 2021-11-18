@@ -29,6 +29,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import com.hans.ryu.composebike.ui.theme.ComposeBikeTheme
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -47,16 +48,22 @@ class MainActivity : AppCompatActivity() {
         var currentWindowState by remember { mutableStateOf(WindowState.Open) }
 
         Surface(color = MaterialTheme.colors.primary, modifier = Modifier.fillMaxSize()) {
+            val scope = rememberCoroutineScope()
+
             when (currentWindowState) {
                 WindowState.Open -> Window(
                     onMinimize = {
                         currentWindowState = WindowState.Minimized
                     },
                     onClose = {
+                        // SOLVED
                         //FIXME rememberCoroutineScope
                         //FIXME window가 닫힐 때 unloadingResourcesForALongTime() 을 호출하고 싶은데
                         //FIXME suspend function 이라 할 수 없다. 어떡하지?
-                        currentWindowState = WindowState.Closed
+                        scope.launch {
+                            unloadingResourcesForALongTime()
+                            currentWindowState = WindowState.Closed
+                        }
                     }
                 )
                 WindowState.Minimized -> MinimizedWindow(onClick = {
@@ -231,11 +238,13 @@ class MainActivity : AppCompatActivity() {
         }
 
         /**
+         * SOLVED
          * FIXME 이 수정 전의 아래 코드는 문제가 있다. onReady 가 변경되면 SplashWindowContent 는 Recomposition 이 될 것.
          *  LaunchedEffect 는 enter 시에 호출되니까, 내부 로직이 또 불린다. 그걸 원치는 않다. 그러므로 rememberUpdatedState 를 쓰자.
          */
         val currentOnReady by rememberUpdatedState(onReady)
 
+        // SOLVED
         //FIXME LaunchedEffect
         //FIXME 여기에서 suspend fun loadingResourcesForALongTime()을 호출하고
         //FIXME 함수가 종료되면 onReady()를 통해 다른 화면으로 넘어가고 싶다.
@@ -245,6 +254,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         /**
+         *  SOLVED
          * val scope = rememberCoroutineScope()
          * scope.launch {
          *      loadingResourcesForALongTime()
