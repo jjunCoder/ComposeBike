@@ -210,23 +210,25 @@ class MainActivity : AppCompatActivity() {
     fun WindowContent() {
         Log.d(TAG, "WindowContent()")
 
-        var destinationContent by remember { mutableStateOf(WindowContent.Splash) }
-        when (destinationContent) {
-            WindowContent.Splash -> SplashWindowContent(onReady = {
-                destinationContent = WindowContent.Bike
-            })
-            WindowContent.Bike -> BikeWindowContent()
-            WindowContent.Error -> ErrorWindowContent()
-        }
-
+        // SOLVED
         //FIXME produceState
         //FIXME BikeContent()로 넘어가기 위한 리소스 로딩과 State 변경의 책임을
         //FIXME SplashWindowContent에 숨기지 말고 여기에서 하게하자
         //FIXME (리소스 로딩에 대한 에러 처리는 덤)
+        val destinationContent by produceState(initialValue = WindowContent.Splash) {
+            val success = loadingResourcesForALongTime()
+            value = if (success) WindowContent.Bike else WindowContent.Error
+        }
+
+        when (destinationContent) {
+            WindowContent.Splash -> SplashWindowContent()
+            WindowContent.Bike -> BikeWindowContent()
+            WindowContent.Error -> ErrorWindowContent()
+        }
     }
 
     @Composable
-    fun SplashWindowContent(onReady: (() -> Unit)? = null) {
+    fun SplashWindowContent() {
         Log.d(TAG, "SplashWindowContent()")
 
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colors.secondary) {
@@ -244,17 +246,18 @@ class MainActivity : AppCompatActivity() {
          * SOLVED
          * FIXME 이 수정 전의 아래 코드는 문제가 있다. onReady 가 변경되면 SplashWindowContent 는 Recomposition 이 될 것.
          *  LaunchedEffect 는 enter 시에 호출되니까, 내부 로직이 또 불린다. 그걸 원치는 않다. 그러므로 rememberUpdatedState 를 쓰자.
-         */
         val currentOnReady by rememberUpdatedState(onReady)
+         */
 
         // SOLVED
         //FIXME LaunchedEffect
         //FIXME 여기에서 suspend fun loadingResourcesForALongTime()을 호출하고
         //FIXME 함수가 종료되면 onReady()를 통해 다른 화면으로 넘어가고 싶다.
+        /**
         LaunchedEffect(Unit) {
-            loadingResourcesForALongTime()
-            currentOnReady?.invoke()
-        }
+        loadingResourcesForALongTime()
+        currentOnReady?.invoke()
+        }*/
 
         /**
          *  SOLVED
