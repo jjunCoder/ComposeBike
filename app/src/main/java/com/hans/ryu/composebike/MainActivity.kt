@@ -29,6 +29,9 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import com.hans.ryu.composebike.ui.theme.ComposeBikeTheme
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
@@ -325,9 +328,17 @@ class MainActivity : AppCompatActivity() {
             contentDescription = null,
         )
 
+        // SOLVED
         //FIXME snapshotFlow
         //FIXME offset 이 200에 도달한 순간 이를 서버에 보고하고 싶다
         //FIXME 참고로 서버에 보고하는 reportBikeReachedEnd() 함수는 suspend 함수이다.
+
+        // Enter 끝나면 1회 실행
+        LaunchedEffect(Unit) {
+            snapshotFlow { offsetState.value }
+                .filter { it >= 200 }
+                .collect { reportBikeReachedEnd() }
+        }
     }
 
     @Composable
