@@ -230,13 +230,31 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        /**
+         * FIXME 이 수정 전의 아래 코드는 문제가 있다. onReady 가 변경되면 SplashWindowContent 는 Recomposition 이 될 것.
+         *  LaunchedEffect 는 enter 시에 호출되니까, 내부 로직이 또 불린다. 그걸 원치는 않다. 그러므로 rememberUpdatedState 를 쓰자.
+         */
+        val currentOnReady by rememberUpdatedState(onReady)
+
         //FIXME LaunchedEffect
         //FIXME 여기에서 suspend fun loadingResourcesForALongTime()을 호출하고
         //FIXME 함수가 종료되면 onReady()를 통해 다른 화면으로 넘어가고 싶다.
-        LaunchedEffect(key1 = Unit) {
+        LaunchedEffect(Unit) {
             loadingResourcesForALongTime()
-            onReady?.invoke()
+            currentOnReady?.invoke()
         }
+
+        /**
+         * val scope = rememberCoroutineScope()
+         * scope.launch {
+         *      loadingResourcesForALongTime()
+         *      currentOnReady?.invoke()
+         * }
+         *
+         * Q. 위 코드가 LaunchedEffect 와 다른 점은?!
+         * A. LaunchedEffect 는 enter 가 끝나면 coroutine block 이 실행되고, leave 시에나 key 가 변경될때 취소된다.
+         *      rememberCoroutineScope 는 coroutineScope 만 한번 만들고, 그 아래 scope.launch { /**/ } 구문은 recomposition 시 마다 실행된다.
+         */
     }
 
     @Composable
