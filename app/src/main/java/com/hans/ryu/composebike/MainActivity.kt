@@ -233,6 +233,10 @@ class MainActivity : AppCompatActivity() {
         //FIXME LaunchedEffect
         //FIXME 여기에서 suspend fun loadingResourcesForALongTime()을 호출하고
         //FIXME 함수가 종료되면 onReady()를 통해 다른 화면으로 넘어가고 싶다.
+        LaunchedEffect(key1 = Unit) {
+            loadingResourcesForALongTime()
+            onReady?.invoke()
+        }
     }
 
     @Composable
