@@ -283,9 +283,14 @@ class MainActivity : AppCompatActivity() {
             animationSpec = tween(DURATION_MILLIS_ANIMATED_BIKE)
         )
 
+        // SOLVED
         //FIXME derivedStateOf()
         //FIXME showCrowd를 bikeOffset이 100dp 이상일 경우에만 true가 되도록 하고싶다.
-        val showCrowd = false
+        val showCrowd by remember {
+            derivedStateOf {
+                bikeOffsetState.value >= 100
+            }
+        }
 
         Surface(modifier = Modifier.fillMaxSize(), color = Color.White) {
 
