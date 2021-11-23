@@ -4,23 +4,29 @@ import android.os.Bundle
 import android.util.Log
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
-import androidx.compose.animation.core.*
+import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -30,7 +36,6 @@ import androidx.lifecycle.LifecycleOwner
 import com.hans.ryu.composebike.ui.theme.ComposeBikeTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 
@@ -215,30 +220,61 @@ class MainActivity : AppCompatActivity() {
         //FIXME BikeContent()로 넘어가기 위한 리소스 로딩과 State 변경의 책임을
         //FIXME SplashWindowContent에 숨기지 말고 여기에서 하게하자
         //FIXME (리소스 로딩에 대한 에러 처리는 덤)
+        /*
         val destinationContent by produceState(initialValue = WindowContent.Splash) {
             val success = loadingResourcesForALongTime()
             value = if (success) WindowContent.Bike else WindowContent.Error
         }
+         */
+
+        var destinationContent by remember {
+            mutableStateOf(WindowContent.Splash)
+        }
+
+        var durationMillis by remember {
+            mutableStateOf(1000)
+        }
+
+        fun onDurationMillisChanged(newDurationMillis: String) {
+            durationMillis = if (newDurationMillis.isNotBlank() && newDurationMillis.toIntOrNull() != null) {
+                newDurationMillis.toInt()
+            } else {
+                0
+            }
+        }
+
+        fun onDone() {
+            destinationContent = if (durationMillis > 0) WindowContent.Bike else WindowContent.Error
+        }
+
 
         when (destinationContent) {
-            WindowContent.Splash -> SplashWindowContent()
-            WindowContent.Bike -> BikeWindowContent()
+            WindowContent.Splash -> SplashWindowContent(durationMillis, { onDurationMillisChanged(it) }, { onDone() })
+            WindowContent.Bike -> BikeWindowContent(durationMillis)
             WindowContent.Error -> ErrorWindowContent()
         }
     }
 
     @Composable
-    fun SplashWindowContent() {
+    fun SplashWindowContent(durationMillis: Int, onValueChange: (String) -> Unit, onDone: () -> Unit) {
         Log.d(TAG, "SplashWindowContent()")
 
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colors.secondary) {
             Column(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(bottom = 8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                Text(text = "Let's bike!", fontSize = 40.sp, fontWeight = FontWeight.Bold)
-                Text(text = "now loading...", fontSize = 24.sp, fontStyle = FontStyle.Italic)
+                Text(text = "Input bike speed", fontSize = 30.sp, fontWeight = FontWeight.Bold)
+                EditText(
+                    durationMillis = durationMillis,
+                    onValueChange = onValueChange,
+                    onDone = onDone,
+                    text = "Done",
+                    enabled = durationMillis > 0
+                )
             }
         }
 
@@ -273,14 +309,58 @@ class MainActivity : AppCompatActivity() {
          */
     }
 
+    @OptIn(ExperimentalComposeUiApi::class)
     @Composable
-    fun BikeWindowContent() {
+    fun EditText(
+        durationMillis: Int,
+        onValueChange: (String) -> Unit,
+        onDone: () -> Unit,
+        text: String,
+        modifier: Modifier = Modifier,
+        enabled: Boolean = true
+    ) {
+        val keyboardController = LocalSoftwareKeyboardController.current
+
+        Row(
+            modifier = modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TextField(
+                modifier = Modifier.weight(1f),
+                value = durationMillis.toString(),
+                onValueChange = onValueChange,
+                keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = {
+                    onDone()
+                    keyboardController?.hide()
+                }),
+                colors = TextFieldDefaults.textFieldColors(
+                    cursorColor = Color.Black,
+                    focusedIndicatorColor = Color.Transparent
+                )
+            )
+            TextButton(
+                onClick = onDone,
+                shape = CircleShape,
+                enabled = enabled,
+                modifier = modifier
+            ) {
+                Text(text = text, color = Color.Black, fontSize = 20.sp)
+            }
+        }
+    }
+
+
+    @Composable
+    fun BikeWindowContent(durationMillis: Int) {
         Log.d(TAG, "BikeWindowContent()")
 
         var bikeState by remember { mutableStateOf(BikePosition.Start) }
         val bikeOffsetState = animateIntAsState(
             targetValue = if (bikeState == BikePosition.Start) OFFSET_BIKE_START else OFFSET_BIKE_FINISH,
-            animationSpec = tween(DURATION_MILLIS_ANIMATED_BIKE)
+            animationSpec = tween(durationMillis = durationMillis)
         )
 
         // SOLVED
@@ -443,7 +523,7 @@ class MainActivity : AppCompatActivity() {
         private const val SIZE_ERROR_IMAGE = 120
         private const val OFFSET_BIKE_START = 0
         private const val OFFSET_BIKE_FINISH = SIZE_WINDOW - SIZE_BIKE
-        private const val DURATION_MILLIS_ANIMATED_BIKE = 2100
+//        private const val DURATION_MILLIS_ANIMATED_BIKE = 2100
     }
 }
 
